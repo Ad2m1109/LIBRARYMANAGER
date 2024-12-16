@@ -19,25 +19,35 @@ CREATE TABLE Subscribers (
     Address VARCHAR(255) NOT NULL,
     Telephone VARCHAR(15) UNIQUE NOT NULL
 );
-
 -- 3. Create BORROWING Table
 CREATE TABLE Borrowing (
     Borrowing_ID INT PRIMARY KEY AUTO_INCREMENT,
     Book_ID INT NOT NULL,
     Subscriber_ID INT NOT NULL,
     Borrowing_Date DATE NOT NULL,
-    Return_Date DATE CHECK (Return_Date > Borrowing_Date),
+    Return_Date DATE,
     FOREIGN KEY (Book_ID) REFERENCES Books(Book_ID),
-    FOREIGN KEY (Subscriber_ID) REFERENCES Subscribers(Subscriber_ID)
+    FOREIGN KEY (Subscriber_ID) REFERENCES Subscribers(Subscriber_ID),
+    CHECK (Return_Date > Borrowing_Date) -- Table-level CHECK constraint
 );
+DELIMITER //
+-- 4. Create Trigger
+CREATE TRIGGER CheckBorrowingDates BEFORE INSERT ON Borrowing
+FOR EACH ROW
+BEGIN
+    IF NEW.Return_Date <= NEW.Borrowing_Date THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Return_Date must be after Borrowing_Date';
+    END IF;
+END; //
 
--- 4. Create USERS Table
-CREATE TABLE Users (
+DELIMITER ;
+-- 5. Create USERS Table
+CREATE TABLE USERS (
     Username VARCHAR(50) PRIMARY KEY,
-    Password VARCHAR(255) NOT NULL,
-    Role ENUM('Admin', 'User') DEFAULT 'User'
+    Password VARCHAR(50) NOT NULL,
+    Role ENUM('Admin', 'User') NOT NULL
 );
-
 -- Insert Example Data for Testing
 
 -- Insert Books
@@ -53,7 +63,8 @@ VALUES
 ('Doe', 'John', '123 Elm Street', '1234567890'),
 ('Smith', 'Jane', '456 Oak Avenue', '0987654321');
 
--- Insert Users
+
+-- Insert admin and user credentials
 INSERT INTO Users (Username, Password, Role)
 VALUES 
 ('admin', 'admin123', 'Admin'),
@@ -93,35 +104,5 @@ JOIN Subscribers ON Borrowing.Subscriber_ID = Subscribers.Subscriber_ID
 GROUP BY Subscriber
 ORDER BY LoanCount DESC;
 
-CREATE TABLE Borrowing (
-    Borrowing_ID INT PRIMARY KEY AUTO_INCREMENT,
-    Book_ID INT NOT NULL,
-    Subscriber_ID INT NOT NULL,
-    Borrowing_Date DATE NOT NULL,
-    Return_Date DATE,
-    FOREIGN KEY (Book_ID) REFERENCES Books(Book_ID),
-    FOREIGN KEY (Subscriber_ID) REFERENCES Subscribers(Subscriber_ID),
-    CHECK (Return_Date > Borrowing_Date) -- Table-level CHECK constraint
-);
-DELIMITER //
 
-CREATE TRIGGER CheckBorrowingDates BEFORE INSERT ON Borrowing
-FOR EACH ROW
-BEGIN
-    IF NEW.Return_Date <= NEW.Borrowing_Date THEN
-        SIGNAL SQLSTATE '45000' 
-        SET MESSAGE_TEXT = 'Return_Date must be after Borrowing_Date';
-    END IF;
-END; //
-
-DELIMITER ;
-CREATE TABLE USERS (
-    Username VARCHAR(50) PRIMARY KEY,
-    Password VARCHAR(50) NOT NULL,
-    Role ENUM('Admin', 'User') NOT NULL
-);
-
--- Insert admin and user credentials
-INSERT INTO USERS (Username, Password, Role) VALUES ('admin1', 'adminpassword', 'Admin');
-INSERT INTO USERS (Username, Password, Role) VALUES ('user1', 'userpassword', 'User');
 
